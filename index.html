@@ -69,3 +69,302 @@ td{padding:8px 12px;border-bottom:1px solid var(--border);font-size:0.88rem;}
 </style>
 </head>
 <body>
+<div id="screen-setup" class="screen active">
+<div class="login-wrap">
+<div class="login-card" style="max-width:520px">
+<div class="login-logo">
+<div class="icon">🏫</div>
+<h2>SchoolPro Setup</h2>
+<p>Connect your Firebase database</p>
+</div>
+<div class="step"><span class="step-num">1</span><p>Go to <strong>console.firebase.google.com</strong> → Create project → Call it SchoolPro</p></div>
+<div class="step"><span class="step-num">2</span><p>Click <strong>Firestore Database</strong> → Create database → Start in test mode</p></div>
+<div class="step"><span class="step-num">3</span><p>Go to <strong>Project Settings</strong> → Your apps → Add Web app → Copy config values below</p></div>
+<div class="config-inputs">
+<input id="cfg-apiKey" placeholder="apiKey: AIzaSy..." />
+<input id="cfg-authDomain" placeholder="authDomain: yourapp.firebaseapp.com" />
+<input id="cfg-projectId" placeholder="projectId: your-project-id" />
+<input id="cfg-appId" placeholder="appId: 1:123:web:abc" />
+</div>
+<button class="btn-save-config" onclick="saveConfig()">💾 Save & Connect</button>
+<p id="setup-error" class="error-msg"></p>
+</div></div></div>
+
+<div id="screen-login" class="screen">
+<div class="login-wrap"><div class="login-card">
+<div class="login-logo">
+<div class="icon">🏫</div>
+<h2>SchoolPro Manager</h2>
+<p>Uganda Secondary School Report System</p>
+</div>
+<div class="tab-switch">
+<button class="active" onclick="switchTab('teacher')">👨‍🏫 Teacher</button>
+<button onclick="switchTab('admin')">🖥️ Admin</button>
+</div>
+<div id="teacher-login">
+<div class="form-group"><label>Your Full Name</label><input id="t-name" type="text" placeholder="e.g. Mr. Okello John" /></div>
+<div class="form-group"><label>Class / Stream</label>
+<select id="t-class">
+<option value="">Select Class</option>
+<option>S.1 North</option><option>S.1 South</option>
+<option>S.2 North</option><option>S.2 South</option>
+<option>S.3</option><option>S.4</option>
+<option>S.5 Arts</option><option>S.5 Sciences</option>
+<option>S.6 Arts</option><option>S.6 Sciences</option>
+</select></div>
+<div class="form-group"><label>Your Subject</label><select id="t-subject"><option value="">Select Subject</option></select></div>
+<div class="form-group"><label>Term</label><select id="t-term"><option>Term 1</option><option>Term 2</option><option>Term 3</option></select></div>
+<div class="form-group"><label>Academic Year</label><input id="t-year" type="number" value="2025" min="2020" max="2040" /></div>
+<button class="btn-primary" onclick="teacherLogin()">Continue to Mark Entry →</button>
+<p id="t-error" class="error-msg"></p>
+</div>
+<div id="admin-login" style="display:none">
+<div class="form-group"><label>Admin Password</label><input id="a-pass" type="password" placeholder="Enter admin password" /></div>
+<button class="btn-primary" onclick="adminLogin()">Login as Admin →</button>
+<p id="a-error" class="error-msg"></p>
+<p style="font-size:0.75rem;color:var(--muted);text-align:center;margin-top:10px">Default password: <strong>admin2025</strong></p>
+</div>
+</div></div></div>
+
+<div id="screen-teacher" class="screen">
+<div class="header">
+<div><div style="font-size:1.1rem;font-weight:700">📝 Mark Entry</div><div style="font-size:0.75rem;opacity:0.8" id="teacher-header-sub"></div></div>
+<div style="display:flex;gap:10px;align-items:center"><span class="badge" id="teacher-header-badge"></span><button class="btn-logout" onclick="logout()">Logout</button></div>
+</div>
+<div class="dash-wrap">
+<div class="info-bar" id="teacher-info-bar"></div>
+<div class="marks-table-wrap">
+<div class="marks-table-header"><span id="marks-table-title">Student Marks</span></div>
+<div class="scroll-x"><table>
+<thead><tr><th>#</th><th>Student Name</th><th>Mark (0-100)</th><th>Grade</th><th>Points</th></tr></thead>
+<tbody id="marks-tbody"></tbody>
+</table></div></div>
+<button class="btn-submit" id="submit-btn" onclick="submitMarks()">✅ Submit All Marks to Admin</button>
+</div></div>
+
+<div id="screen-admin" class="screen">
+<div class="header">
+<div><div style="font-size:1.1rem;font-weight:700">🖥️ Admin Portal</div><div style="font-size:0.75rem;opacity:0.8">SchoolPro Manager</div></div>
+<div style="display:flex;gap:10px;align-items:center"><span class="badge">ADMIN</span><button class="btn-logout" onclick="logout()">Logout</button></div>
+</div>
+<div class="dash-wrap">
+<div class="stats-grid" id="admin-stats"></div>
+<div class="admin-tabs">
+<button class="admin-tab active" onclick="adminTab('marks',this)">📊 View Marks</button>
+<button class="admin-tab" onclick="adminTab('summary',this)">📋 Class Summary</button>
+<button class="admin-tab" onclick="adminTab('teachers',this)">👨‍🏫 Teachers</button>
+</div>
+<div id="tab-marks">
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="admin-class-btns"></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="admin-subject-btns"></div>
+<div id="admin-marks-table"></div>
+</div>
+<div id="tab-summary" style="display:none">
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="summary-class-btns"></div>
+<div id="summary-content"></div>
+</div>
+<div id="tab-teachers" style="display:none"><div id="teachers-content"></div></div>
+</div></div>
+
+<div class="success-toast" id="toast"></div>
+<script type="module">
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import{getFirestore,collection,doc,setDoc,getDocs}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const ADMIN_PASSWORD='admin2025';
+const CLASSES=['S.1 North','S.1 South','S.2 North','S.2 South','S.3','S.4','S.5 Arts','S.5 Sciences','S.6 Arts','S.6 Sciences'];
+const SUBJECTS={
+'S.1 North':['Mathematics','Physics','Chemistry','Biology','English','History','Geography','CRE','IRE','Agriculture','Entrepreneurship','Luganda','Art','Arabic','ICT'],
+'S.1 South':['Mathematics','Physics','Chemistry','Biology','English','History','Geography','CRE','IRE','Agriculture','Entrepreneurship','Luganda','Art','Arabic','ICT'],
+'S.2 North':['Mathematics','Physics','Chemistry','Biology','English','History','Geography','CRE','IRE','Agriculture','Entrepreneurship','Luganda','Art','Arabic','ICT'],
+'S.2 South':['Mathematics','Physics','Chemistry','Biology','English','History','Geography','CRE','IRE','Agriculture','Entrepreneurship','Luganda','Art','Arabic','ICT'],
+'S.3':['Mathematics','Physics','Chemistry','Biology','English','History','Geography','Agriculture','Entrepreneurship','Luganda','Art','Arabic','ICT'],
+'S.4':['Mathematics','Physics','Chemistry','Biology','English','History','Geography','Agriculture','Entrepreneurship','Luganda','Art','Arabic','ICT'],
+'S.5 Arts':['General Paper','ICT','History','Economics','Geography','Divinity','Literature','Art'],
+'S.5 Sciences':['General Paper','ICT','Mathematics','Physics','Chemistry','Biology','Agriculture'],
+'S.6 Arts':['General Paper','ICT','History','Economics','Geography','Divinity','Literature','Art'],
+'S.6 Sciences':['General Paper','ICT','Mathematics','Physics','Chemistry','Biology','Agriculture']
+};
+
+function gradeOLevel(m){
+m=parseInt(m);
+if(m>=80)return{grade:'D1',points:1};
+if(m>=70)return{grade:'D2',points:2};
+if(m>=65)return{grade:'C3',points:3};
+if(m>=60)return{grade:'C4',points:4};
+if(m>=55)return{grade:'C5',points:5};
+if(m>=50)return{grade:'C6',points:6};
+if(m>=45)return{grade:'P7',points:7};
+if(m>=40)return{grade:'P8',points:8};
+return{grade:'F9',points:9};
+}
+function gradeALevel(m,sub){
+m=parseInt(m);
+if(sub==='General Paper'||sub==='ICT')return m>=50?{grade:'P',points:1}:{grade:'F',points:0};
+if(m>=80)return{grade:'A',points:6};
+if(m>=70)return{grade:'B',points:5};
+if(m>=60)return{grade:'C',points:4};
+if(m>=50)return{grade:'D',points:3};
+if(m>=40)return{grade:'E',points:2};
+if(m>=35)return{grade:'O',points:1};
+return{grade:'F',points:0};
+}
+function getGrade(mark,cls,sub){
+if(cls.startsWith('S.5')||cls.startsWith('S.6'))return gradeALevel(mark,sub);
+return gradeOLevel(mark);
+}
+
+let db=null,currentUser=null,studentRows=[];
+
+window.addEventListener('DOMContentLoaded',()=>{
+const saved=localStorage.getItem('schoolpro_firebase');
+if(saved){try{initFirebase(JSON.parse(saved));}catch(e){showScreen('setup');}}
+else showScreen('setup');
+document.getElementById('t-class').addEventListener('change',populateSubjects);
+});
+
+function initFirebase(cfg){
+try{const app=initializeApp(cfg);db=getFirestore(app);showScreen('login');}
+catch(e){showScreen('setup');document.getElementById('setup-error').textContent='Failed: '+e.message;}
+}
+
+window.saveConfig=function(){
+const cfg={
+apiKey:document.getElementById('cfg-apiKey').value.trim(),
+authDomain:document.getElementById('cfg-authDomain').value.trim(),
+projectId:document.getElementById('cfg-projectId').value.trim(),
+appId:document.getElementById('cfg-appId').value.trim()
+};
+if(!cfg.apiKey||!cfg.projectId){document.getElementById('setup-error').textContent='Fill all fields.';return;}
+localStorage.setItem('schoolpro_firebase',JSON.stringify(cfg));
+initFirebase(cfg);
+};
+
+function showScreen(n){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+n).classList.add('active');}
+
+window.switchTab=function(tab){
+document.querySelectorAll('.tab-switch button').forEach(b=>b.classList.remove('active'));
+event.target.classList.add('active');
+document.getElementById('teacher-login').style.display=tab==='teacher'?'block':'none';
+document.getElementById('admin-login').style.display=tab==='admin'?'block':'none';
+};
+
+function populateSubjects(){
+const cls=document.getElementById('t-class').value;
+const sel=document.getElementById('t-subject');
+sel.innerHTML='<option value="">Select Subject</option>';
+if(!cls)return;
+(SUBJECTS[cls]||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+}
+
+window.teacherLogin=function(){
+const name=document.getElementById('t-name').value.trim();
+const cls=document.getElementById('t-class').value;
+const subject=document.getElementById('t-subject').value;
+const term=document.getElementById('t-term').value;
+const year=document.getElementById('t-year').value;
+if(!name||!cls||!subject){document.getElementById('t-error').textContent='Fill all fields.';return;}
+currentUser={role:'teacher',name,cls,subject,term,year};
+buildMarkSheet();showScreen('teacher');
+};
+
+function buildMarkSheet(){
+const{name,cls,subject,term,year}=currentUser;
+document.getElementById('teacher-header-sub').textContent=cls+' · '+subject+' · '+term+' '+year;
+document.getElementById('teacher-header-badge').textContent=name;
+document.getElementById('marks-table-title').textContent=subject+' – '+cls;
+document.getElementById('teacher-info-bar').innerHTML='<div class="info-item">Teacher: <span>'+name+'</span></div><div class="info-item">Class: <span>'+cls+'</span></div><div class="info-item">Subject: <span>'+subject+'</span></div><div class="info-item">Term: <span>'+term+' '+year+'</span></div>';
+const tbody=document.getElementById('marks-tbody');
+tbody.innerHTML='';studentRows=[];
+for(let i=1;i<=150;i++){
+studentRows.push({num:i,name:'',mark:''});
+const tr=document.createElement('tr');
+tr.innerHTML='<td style="color:var(--muted)">'+i+'</td><td><input class="mark-input" style="width:160px;text-align:left" placeholder="Student name" oninput="updateRow('+(i-1)+',\'name\',this.value)"/></td><td><input class="mark-input" type="number" min="0" max="100" placeholder="0-100" oninput="updateRow('+(i-1)+',\'mark\',this.value)"/></td><td><span id="grade-'+i+'" class="grade-badge">-</span></td><td><span id="pts-'+i+'" style="font-weight:700">-</span></td>';
+tbody.appendChild(tr);
+}}
+
+window.updateRow=function(idx,field,val){
+studentRows[idx][field]=val;
+if(field==='mark'){
+const{grade,points}=getGrade(val,currentUser.cls,currentUser.subject);
+document.getElementById('grade-'+(idx+1)).textContent=grade;
+document.getElementById('grade-'+(idx+1)).className='grade-badge grade-'+grade;
+document.getElementById('pts-'+(idx+1)).textContent=points;
+}};
+
+window.submitMarks=async function(){
+const btn=document.getElementById('submit-btn');
+btn.disabled=true;btn.textContent='Submitting...';
+try{
+const{name,cls,subject,term,year}=currentUser;
+const filled=studentRows.filter(r=>r.name.trim()&&r.mark!=='');
+if(filled.length===0){showToast('⚠️ Enter at least one mark!');btn.disabled=false;btn.textContent='✅ Submit All Marks to Admin';return;}
+const docId=(year+'_'+term+'_'+cls+'_'+subject).replace(/[^a-zA-Z0-9_]/g,'_');
+const students=filled.map(r=>{const{grade,points}=getGrade(r.mark,cls,subject);return{num:r.num,name:r.name.trim(),mark:parseInt(r.mark),grade,points};});
+await setDoc(doc(db,'marks',docId),{teacher:name,cls,subject,term,year:parseInt(year),submittedAt:new Date().toISOString(),students});
+showToast('✅ '+filled.length+' marks submitted!');btn.textContent='✅ Submitted!';
+}catch(e){showToast('❌ Error: '+e.message);btn.disabled=false;btn.textContent='✅ Submit All Marks to Admin';}
+};
+
+window.adminLogin=function(){
+if(document.getElementById('a-pass').value!==ADMIN_PASSWORD){document.getElementById('a-error').textContent='Wrong password.';return;}
+currentUser={role:'admin'};showScreen('admin');loadAdminDashboard();
+};
+
+async function loadAdminDashboard(){
+try{
+const snap=await getDocs(collection(db,'marks'));
+const allDocs=[];snap.forEach(d=>allDocs.push(d.data()));
+window._allDocs=allDocs;
+const classes=new Set(allDocs.map(d=>d.cls));
+const teachers=new Set(allDocs.map(d=>d.teacher));
+const total=allDocs.reduce((a,d)=>a+d.students.length,0);
+document.getElementById('admin-stats').innerHTML='<div class="stat-card"><div class="num">'+allDocs.length+'</div><div class="lbl">Submissions</div></div><div class="stat-card"><div class="num">'+classes.size+'</div><div class="lbl">Classes</div></div><div class="stat-card"><div class="num">'+teachers.size+'</div><div class="lbl">Teachers</div></div><div class="stat-card"><div class="num">'+total+'</div><div class="lbl">Mark Entries</div></div>';
+document.getElementById('admin-class-btns').innerHTML=CLASSES.map((c,i)=>'<button class="class-btn'+(i===0?' active':'')+'" onclick="loadClassMarks(\''+c+'\',this)">'+c+'</button>').join('');
+document.getElementById('summary-class-btns').innerHTML=CLASSES.map((c,i)=>'<button class="class-btn'+(i===0?' active':'')+'" onclick="loadClassSummary(\''+c+'\',this)">'+c+'</button>').join('');
+const trows=allDocs.map(d=>'<tr><td>'+d.teacher+'</td><td>'+d.cls+'</td><td>'+d.subject+'</td><td>'+d.term+' '+d.year+'</td><td>'+d.students.length+'</td><td>'+new Date(d.submittedAt).toLocaleString()+'</td></tr>').join('');
+document.getElementById('teachers-content').innerHTML='<div class="marks-table-wrap"><div class="marks-table-header">All Teacher Submissions</div><div class="scroll-x"><table><thead><tr><th>Teacher</th><th>Class</th><th>Subject</th><th>Term</th><th>Students</th><th>Submitted</th></tr></thead><tbody>'+(trows||'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No submissions yet</td></tr>')+'</tbody></table></div></div>';
+if(CLASSES.length>0)loadClassMarks(CLASSES[0],document.querySelector('#admin-class-btns .class-btn'));
+}catch(e){document.getElementById('admin-stats').innerHTML='<p style="color:red">Error: '+e.message+'</p>';}}
+
+window.adminTab=function(tab,btn){
+document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+['marks','summary','teachers'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===tab?'block':'none';});};
+
+window.loadClassMarks=function(cls,btn){
+document.querySelectorAll('#admin-class-btns .class-btn').forEach(b=>b.classList.remove('active'));
+if(btn)btn.classList.add('active');
+const allDocs=window._allDocs||[];
+const classDocs=allDocs.filter(d=>d.cls===cls);
+const subjects=[...new Set(classDocs.map(d=>d.subject))];
+document.getElementById('admin-subject-btns').innerHTML=subjects.map((s,i)=>'<button class="class-btn'+(i===0?' active':'')+'" onclick="showSubjectMarks(\''+cls+'\',\''+s+'\',this)">'+s+'</button>').join('')||'<span style="color:var(--muted);font-size:0.85rem">No submissions yet</span>';
+if(subjects.length>0)showSubjectMarks(cls,subjects[0],document.querySelector('#admin-subject-btns .class-btn'));
+else document.getElementById('admin-marks-table').innerHTML='<div class="no-data">No marks for this class yet.</div>';};
+
+window.showSubjectMarks=function(cls,subject,btn){
+document.querySelectorAll('#admin-subject-btns .class-btn').forEach(b=>b.classList.remove('active'));
+if(btn)btn.classList.add('active');
+const d=(window._allDocs||[]).find(d=>d.cls===cls&&d.subject===subject);
+if(!d){document.getElementById('admin-marks-table').innerHTML='<div class="no-data">No data.</div>';return;}
+const rows=d.students.map(s=>'<tr><td>'+s.num+'</td><td>'+s.name+'</td><td><strong>'+s.mark+'</strong></td><td><span class="grade-badge grade-'+s.grade+'">'+s.grade+'</span></td><td><strong>'+s.points+'</strong></td></tr>').join('');
+document.getElementById('admin-marks-table').innerHTML='<div class="marks-table-wrap"><div class="marks-table-header"><span>'+subject+' – '+cls+'</span><span style="font-size:0.8rem;opacity:0.8">Teacher: '+d.teacher+' · '+d.term+' '+d.year+'</span></div><div class="scroll-x"><table><thead><tr><th>#</th><th>Student</th><th>Mark</th><th>Grade</th><th>Points</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';};
+
+window.loadClassSummary=function(cls,btn){
+document.querySelectorAll('#summary-class-btns .class-btn').forEach(b=>b.classList.remove('active'));
+if(btn)btn.classList.add('active');
+const allDocs=window._allDocs||[];
+const classDocs=allDocs.filter(d=>d.cls===cls);
+if(!classDocs.length){document.getElementById('summary-content').innerHTML='<div class="no-data">No submissions yet.</div>';return;}
+const map={};
+classDocs.forEach(sd=>{sd.students.forEach(s=>{if(!map[s.name])map[s.name]={name:s.name,subjects:{},total:0};map[s.name].subjects[sd.subject]={mark:s.mark,grade:s.grade,points:s.points};map[s.name].total+=(typeof s.points==='number'?s.points:0);});});
+const students=Object.values(map).sort((a,b)=>a.total-b.total);
+const subjects=[...new Set(classDocs.map(d=>d.subject))];
+const headers=subjects.map(s=>'<th>'+s+'</th>').join('');
+const rows=students.map((st,i)=>'<tr><td>'+(i+1)+'</td><td><strong>'+st.name+'</strong></td>'+subjects.map(s=>st.subjects[s]?'<td><span class="grade-badge grade-'+st.subjects[s].grade+'">'+st.subjects[s].grade+'</span> <small>'+st.subjects[s].mark+'</small></td>':'<td style="color:var(--muted)">-</td>').join('')+'<td><strong style="color:var(--primary)">'+st.total+'</strong></td></tr>').join('');
+document.getElementById('summary-content').innerHTML='<div class="marks-table-wrap"><div class="marks-table-header">'+cls+' – Full Summary</div><div class="scroll-x"><table><thead><tr><th>#</th><th>Student</th>'+headers+'<th>Total</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';};
+
+window.logout=function(){currentUser=null;showScreen('login');};
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+</script>
+</body>
+</html>
